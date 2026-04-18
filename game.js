@@ -1,6 +1,4 @@
 (() => {
-  if (window.SSS_BOOTSTRAPPED) return;
-  window.SSS_BOOTSTRAPPED = true;
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
   const overlay = document.getElementById("overlay");
