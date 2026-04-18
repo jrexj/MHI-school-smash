@@ -12,10 +12,7 @@
   3) Edit attacks:
      - keys: neutral, up, down, side
      - each attack has damage, knockbackX, knockbackY, duration, cooldown
-  4) Add attackAnimations URLs for each combo direction:
-     attackAnimations.smash.neutral / up / down / side
-     attackAnimations.special.neutral / up / down / side
-  5) Left/right are mirrored automatically when direction is left.
+  4) Left/right are mirrored automatically when direction is left.
 
   HOW TO ADD CUSTOM MAPS
   ----------------------
@@ -24,7 +21,6 @@
   3) Set spawn points.
   4) Add platforms using x/y/w/h (pixels).
   5) Set background image URL (or empty for gradient fallback).
-  6) Optional: set floorTexture/platformTexture image URLs.
 */
 
 window.SSS_DATA = {
@@ -59,20 +55,6 @@ window.SSS_DATA = {
         fall: "",
         attack: ""
       },
-      attackAnimations: {
-        smash: {
-          neutral: "",
-          up: "",
-          down: "",
-          side: ""
-        },
-        special: {
-          neutral: "",
-          up: "",
-          down: "",
-          side: ""
-        }
-      },
       attacks: {
         smash: {
           neutral: { damage: 16, knockbackX: 7, knockbackY: -6, duration: 18, cooldown: 22 },
@@ -95,8 +77,6 @@ window.SSS_DATA = {
       id: "academy-arena",
       name: "Academy Arena",
       background: "",
-      floorTexture: "",
-      platformTexture: "",
       blastZone: { left: -200, right: 1160, top: -220, bottom: 760 },
       spawn: [
         { x: 320, y: 220 },

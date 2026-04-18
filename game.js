@@ -1,6 +1,4 @@
 (() => {
-  if (window.SSS_BOOTSTRAPPED) return;
-  window.SSS_BOOTSTRAPPED = true;
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
   const overlay = document.getElementById("overlay");
@@ -26,20 +24,6 @@
   const keys = new Set();
   window.addEventListener("keydown", (e) => keys.add(e.code));
   window.addEventListener("keyup", (e) => keys.delete(e.code));
-
-  const imageCache = new Map();
-  function getImage(url) {
-    if (!url) return null;
-    if (imageCache.has(url)) return imageCache.get(url);
-    const img = new Image();
-    img.src = url;
-    imageCache.set(url, img);
-    return img;
-  }
-
-  function resolveAttackAnim(character, kind, dirKey) {
-    return character.attackAnimations?.[kind]?.[dirKey] || character.animations?.attack || character.sprite || "";
-  }
 
   function setOverlay(html) {
     overlay.innerHTML = html;
@@ -206,9 +190,7 @@
       stocks: S.stocks,
       dead: false,
       aiTimer: 0,
-      aiIntent: { move: 0, jump: false, attack: null },
-      lastAttackKind: null,
-      lastAttackDir: "neutral"
+      aiIntent: { move: 0, jump: false, attack: null }
     };
   }
 
@@ -221,20 +203,6 @@
 
     const p1Char = DATA.characters[state.p1CharIndex];
     const p2Char = DATA.characters[state.p2CharIndex];
-
-    // Warm image cache for selected content
-    for (const char of [p1Char, p2Char]) {
-      getImage(char.sprite);
-      Object.values(char.animations || {}).forEach(getImage);
-      for (const type of ["smash", "special"]) {
-        for (const dir of ["neutral", "up", "down", "side"]) {
-          getImage(char.attackAnimations?.[type]?.[dir]);
-        }
-      }
-    }
-    getImage(state.map.background);
-    getImage(state.map.floorTexture);
-    getImage(state.map.platformTexture);
     const sp1 = state.map.spawn[0];
     const sp2 = state.map.spawn[1] || state.map.spawn[0];
 
@@ -278,8 +246,6 @@
     if (p.cooldown > 0 || p.attackTimer > 0) return;
     const key = attackTypeFromInput(direction);
     const data = p.c.attacks[kind][key];
-    p.lastAttackKind = kind;
-    p.lastAttackDir = key;
     p.attackTimer = data.duration;
     p.cooldown = data.cooldown;
     const dir = direction.horizontal !== 0 ? Math.sign(direction.horizontal) : p.facing;
@@ -496,42 +462,8 @@
     );
   }
 
-  function drawImageOrFallback(p, url) {
-    const img = getImage(url);
-    if (img && img.complete && img.naturalWidth > 0) {
-      const x = Math.round(p.x);
-      const y = Math.round(p.y);
-      if (p.facing === -1) {
-        ctx.save();
-        ctx.translate(x + p.w / 2, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, -p.w / 2, y, p.w, p.h);
-        ctx.restore();
-      } else {
-        ctx.drawImage(img, x, y, p.w, p.h);
-      }
-      return true;
-    }
-    return false;
-  }
-
   function drawPixelCharacter(p) {
-    let actionUrl = "";
-    if (p.attackTimer > 0 && p.lastAttackKind) {
-      actionUrl = resolveAttackAnim(p.c, p.lastAttackKind, p.lastAttackDir);
-    } else if (!p.onGround) {
-      actionUrl = p.vy < 0 ? p.c.animations?.jump : p.c.animations?.fall;
-    } else if (Math.abs(p.vx) > 1.1) {
-      actionUrl = p.c.animations?.run;
-    } else {
-      actionUrl = p.c.animations?.idle || p.c.sprite;
-    }
-
-    if (drawImageOrFallback(p, actionUrl || p.c.sprite)) {
-      return;
-    }
-
-    // Minimal 8-bit fallback body when no sprite/image URL is provided
+    // Minimal 8-bit style body if no gif sprite is provided
     const base = p.c.color || "#4cc9f0";
     ctx.fillStyle = base;
     ctx.fillRect(Math.round(p.x), Math.round(p.y), p.w, p.h);
@@ -551,17 +483,12 @@
     const map = state.map;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background image (if provided) else gradient sky
-    const bg = getImage(map.background);
-    if (bg && bg.complete && bg.naturalWidth > 0) {
-      ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-    } else {
-      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, "#2f4ca1");
-      grad.addColorStop(1, "#12182f");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    // Sky
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, "#2f4ca1");
+    grad.addColorStop(1, "#12182f");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Grid for retro style
     ctx.strokeStyle = "rgba(255,255,255,0.05)";
@@ -573,20 +500,14 @@
     }
 
     // Platforms
-    const floorTexture = getImage(map.floorTexture);
-    const platformTexture = getImage(map.platformTexture);
-    const drawPlat = (p, color = "#5f6cae", texture = null) => {
-      if (texture && texture.complete && texture.naturalWidth > 0) {
-        ctx.drawImage(texture, p.x, p.y, p.w, p.h);
-      } else {
-        ctx.fillStyle = color;
-        ctx.fillRect(p.x, p.y, p.w, p.h);
-        ctx.fillStyle = "#2f3766";
-        ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
-      }
+    const drawPlat = (p, color = "#5f6cae") => {
+      ctx.fillStyle = color;
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = "#2f3766";
+      ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
     };
-    drawPlat(map.floor, "#7587de", floorTexture);
-    map.platforms.forEach((p) => drawPlat(p, "#5f6cae", platformTexture));
+    drawPlat(map.floor, "#7587de");
+    map.platforms.forEach((p) => drawPlat(p));
   }
 
   function drawHUD() {

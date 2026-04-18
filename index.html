@@ -4,104 +4,85 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Super School Smash</title>
-  <style>
-    /* Critical fallback styles so menus/errors still appear even if style.css is missing. */
-    html, body { margin: 0; padding: 0; background: #0a0f25; color: #fff; font-family: sans-serif; }
-    body { min-height: 100vh; display: grid; place-items: center; }
-    #app { position: relative; width: min(100vw, 960px); aspect-ratio: 16/9; border: 3px solid #2f3f83; }
-    canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; background: #070a1a; }
-    .overlay { position: absolute; inset: 0; display: none; place-items: center; background: rgba(5,8,20,.9); padding: 16px; }
-    .overlay.show { display: grid; }
-    .panel { background: #151938; border: 1px solid #4f5ea8; border-radius: 10px; padding: 12px; max-width: 600px; }
-  </style>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div id="app">
     <canvas id="gameCanvas" width="960" height="540" aria-label="Super School Smash canvas"></canvas>
-    <div id="overlay" class="overlay show">
-      <div class="panel"><h2>Loading Super School Smash...</h2></div>
-    </div>
+    <div id="overlay" class="overlay"></div>
   </div>
 
   <noscript>This game requires JavaScript.</noscript>
 
   <script>
     /*
-      Standalone Loader Notes
-      -----------------------
-      This page first tries local files (same folder as index.html).
-      If missing, it tries GitHub CDN files using jsDelivr.
+      GitHub Fallback Loader
+      ----------------------
+      If you only open index.html and other files are missing, this loader attempts
+      to load scripts/styles from your GitHub repo's raw URL.
 
-      Update this value to your repository CDN base URL:
-      https://cdn.jsdelivr.net/gh/YOUR_USERNAME/YOUR_REPO@main
+      1) Replace GITHUB_RAW_BASE_URL with your own raw folder URL.
+         Example:
+         https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main
+      2) Keep file names the same (style.css, gameData.js, game.js).
     */
     window.SSS_CONFIG = {
-      GITHUB_CDN_BASE_URL: "https://cdn.jsdelivr.net/gh/your-username/super-school-smash@main"
+      GITHUB_RAW_BASE_URL: "https://raw.githubusercontent.com/your-username/super-school-smash/main"
     };
 
-    (async function boot() {
-      const overlay = document.getElementById("overlay");
+    (async function loadGameFiles() {
       const files = ["gameData.js", "game.js"];
 
-      function setLoadMessage(msg) {
-        overlay.innerHTML = `<div class="panel"><h2>${msg}</h2></div>`;
-        overlay.classList.add("show");
-      }
-
-      function loadScript(url) {
+      function loadLocalScript(src) {
         return new Promise((resolve, reject) => {
           const s = document.createElement("script");
-          s.src = url;
-          s.async = false;
-          s.onload = resolve;
-          s.onerror = () => reject(new Error(`Could not load ${url}`));
+          s.src = `./${src}`;
+          s.onload = () => resolve({ ok: true, source: "local", file: src });
+          s.onerror = () => reject(new Error(`Local script failed: ${src}`));
           document.body.appendChild(s);
         });
       }
 
-      async function loadFile(file) {
-        try {
-          await loadScript(`./${file}`);
-          return;
-        } catch {
-          const base = window.SSS_CONFIG?.GITHUB_CDN_BASE_URL || "";
-          await loadScript(`${base}/${file}`);
-        }
+      function loadRemoteScript(src) {
+        return new Promise((resolve, reject) => {
+          const base = window.SSS_CONFIG?.GITHUB_RAW_BASE_URL || "";
+          const s = document.createElement("script");
+          s.src = `${base}/${src}`;
+          s.onload = () => resolve({ ok: true, source: "github", file: src });
+          s.onerror = () => reject(new Error(`Remote script failed: ${s.src}`));
+          document.body.appendChild(s);
+        });
       }
 
-      // stylesheet fallback
+      // CSS fallback if local style.css fails
       const localCss = document.querySelector('link[href="./style.css"]');
       localCss?.addEventListener("error", () => {
-        const base = window.SSS_CONFIG?.GITHUB_CDN_BASE_URL || "";
         const remote = document.createElement("link");
         remote.rel = "stylesheet";
-        remote.href = `${base}/style.css`;
+        remote.href = `${window.SSS_CONFIG?.GITHUB_RAW_BASE_URL || ""}/style.css`;
         document.head.appendChild(remote);
       });
 
-      try {
-        setLoadMessage("Loading game files...");
-        for (const file of files) {
-          await loadFile(file);
-        }
-
-        // game.js hides overlay once credits begin; if it didn't boot, show a useful error.
-        setTimeout(() => {
-          if (!window.SSS_BOOTSTRAPPED) {
-            setLoadMessage("Game failed to boot. Check browser console and verify file paths.");
+      for (const file of files) {
+        try {
+          await loadLocalScript(file);
+        } catch {
+          try {
+            await loadRemoteScript(file);
+          } catch (err) {
+            const overlay = document.getElementById("overlay");
+            overlay.innerHTML = `
+              <div class="panel">
+                <h1>Super School Smash</h1>
+                <p>Could not load <code>${file}</code>.</p>
+                <p>Set <code>GITHUB_RAW_BASE_URL</code> in <code>index.html</code> to your repo raw URL.</p>
+                <small>${err.message}</small>
+              </div>
+            `;
+            overlay.classList.add("show");
+            break;
           }
-        }, 1200);
-      } catch (err) {
-        overlay.innerHTML = `
-          <div class="panel">
-            <h2>Could not start Super School Smash</h2>
-            <p>Put <code>index.html</code>, <code>style.css</code>, <code>gameData.js</code>, and <code>game.js</code> in the same folder.</p>
-            <p>Or set a correct <code>GITHUB_CDN_BASE_URL</code> in <code>index.html</code>.</p>
-            <small>${err.message}</small>
-          </div>
-        `;
-        overlay.classList.add("show");
+        }
       }
     })();
   </script>
