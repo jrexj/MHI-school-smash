@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super School Smash</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas" width="960" height="540" aria-label="Super School Smash canvas"></canvas>
+    <div id="overlay" class="overlay"></div>
+  </div>
+
+  <noscript>This game requires JavaScript.</noscript>
+
+  <script>
+    /*
+      GitHub Fallback Loader
+      ----------------------
+      If you only open index.html and other files are missing, this loader attempts
+      to load scripts/styles from your GitHub repo's raw URL.
+
+      1) Replace GITHUB_RAW_BASE_URL with your own raw folder URL.
+         Example:
+         https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main
+      2) Keep file names the same (style.css, gameData.js, game.js).
+    */
+    window.SSS_CONFIG = {
+      GITHUB_RAW_BASE_URL: "https://raw.githubusercontent.com/your-username/super-school-smash/main"
+    };
+
+    (async function loadGameFiles() {
+      const files = ["gameData.js", "game.js"];
+
+      function loadLocalScript(src) {
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = `./${src}`;
+          s.onload = () => resolve({ ok: true, source: "local", file: src });
+          s.onerror = () => reject(new Error(`Local script failed: ${src}`));
+          document.body.appendChild(s);
+        });
+      }
+
+      function loadRemoteScript(src) {
+        return new Promise((resolve, reject) => {
+          const base = window.SSS_CONFIG?.GITHUB_RAW_BASE_URL || "";
+          const s = document.createElement("script");
+          s.src = `${base}/${src}`;
+          s.onload = () => resolve({ ok: true, source: "github", file: src });
+          s.onerror = () => reject(new Error(`Remote script failed: ${s.src}`));
+          document.body.appendChild(s);
+        });
+      }
+
+      // CSS fallback if local style.css fails
+      const localCss = document.querySelector('link[href="./style.css"]');
+      localCss?.addEventListener("error", () => {
+        const remote = document.createElement("link");
+        remote.rel = "stylesheet";
+        remote.href = `${window.SSS_CONFIG?.GITHUB_RAW_BASE_URL || ""}/style.css`;
+        document.head.appendChild(remote);
+      });
+
+      for (const file of files) {
+        try {
+          await loadLocalScript(file);
+        } catch {
+          try {
+            await loadRemoteScript(file);
+          } catch (err) {
+            const overlay = document.getElementById("overlay");
+            overlay.innerHTML = `
+              <div class="panel">
+                <h1>Super School Smash</h1>
+                <p>Could not load <code>${file}</code>.</p>
+                <p>Set <code>GITHUB_RAW_BASE_URL</code> in <code>index.html</code> to your repo raw URL.</p>
+                <small>${err.message}</small>
+              </div>
+            `;
+            overlay.classList.add("show");
+            break;
+          }
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
